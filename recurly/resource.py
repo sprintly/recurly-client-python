@@ -248,7 +248,7 @@ class Resource(object):
         the given code or UUID.
 
         Only `Resource` classes with specified `member_path` attributes
-        can be directly requested with this method. 
+        can be directly requested with this method.
 
         """
         url = urljoin(recurly.BASE_URI, cls.member_path % (uuid,))
@@ -450,7 +450,7 @@ class Resource(object):
                 raise AttributeError(name)
 
         elem = selfnode.find(self.__getpath__(name))
-        
+
         if elem is None:
             # It might be an <a name> link.
             for anchor_elem in selfnode.findall('a'):
@@ -574,3 +574,12 @@ class Resource(object):
                 sub_elem = self.element_for_value(attrname, value)
                 elem.append(sub_elem)
         return elem
+
+    def to_dict(self):
+        d = {}
+        for attr in self.attributes:
+            try:
+                d[attr] = getattr(self, attr)
+            except AttributeError:
+                pass
+        return d
