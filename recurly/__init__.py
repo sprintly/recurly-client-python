@@ -1,11 +1,8 @@
 import logging
-from urllib import urlencode
 from urlparse import urljoin
 from xml.etree import ElementTree
 
-import recurly.js as js
-from recurly.errors import *
-from recurly.resource import Resource, Money, PageError
+from recurly.resource import Resource
 
 
 """
@@ -66,7 +63,8 @@ class Account(Resource):
             except AttributeError:
                 pass
             else:
-                elem.append(self.element_for_value('account_code', account_code))
+                elem.append(
+                    self.element_for_value('account_code', account_code))
 
         if 'billing_info' in self.__dict__:
             elem.append(self.billing_info.to_element())
@@ -120,7 +118,8 @@ class Account(Resource):
     def __getattr__(self, name):
         if name == 'billing_info':
             try:
-                billing_info_url = self._elem.find('billing_info').attrib['href']
+                billing_info_url = \
+                    self._elem.find('billing_info').attrib['href']
             except (AttributeError, KeyError):
                 raise AttributeError(name)
             resp, elem = BillingInfo.element_for_url(billing_info_url)
@@ -134,7 +133,8 @@ class Account(Resource):
         return charge.post(url)
 
     def invoice(self):
-        """Create an invoice for any outstanding adjustments this account has."""
+        """Create an invoice for any outstanding adjustments this account
+            has."""
         url = urljoin(self._url, '%s/invoices' % self.account_code)
 
         response = self.http_request(url, 'POST')
@@ -148,7 +148,7 @@ class Account(Resource):
         invoice = Invoice.from_element(elem)
         invoice._url = response.getheader('Location')
         return invoice
-    
+
     def reopen(self):
         """Reopen a closed account."""
         url = urljoin(self._url, '%s/reopen' % self.account_code)
@@ -166,7 +166,8 @@ class Account(Resource):
         return subscription.post(url)
 
     def update_billing_info(self, billing_info):
-        """Change this account's billing information to the given `BillingInfo`."""
+        """Change this account's billing information to the given
+           `BillingInfo`."""
         url = urljoin(self._url, '%s/billing_info' % self.account_code)
         response = billing_info.http_request(url, 'PUT', billing_info,
             {'Content-Type': 'application/xml; charset=utf-8'})
@@ -245,7 +246,8 @@ class Coupon(Resource):
 
     @classmethod
     def value_for_element(cls, elem):
-        if not elem or elem.tag != 'plan_codes' or elem.attrib.get('type') != 'array':
+        if not elem or elem.tag != 'plan_codes' or \
+                elem.attrib.get('type') != 'array':
             return super(Coupon, cls).value_for_element(elem)
 
         return [code_elem.text for code_elem in elem]
@@ -310,7 +312,8 @@ class Redemption(Resource):
 
 class Adjustment(Resource):
 
-    """A charge or credit applied (or to be applied) to an account's invoice."""
+    """A charge or credit applied (or to be applied) to an account's
+       invoice."""
 
     nodename = 'adjustment'
 
@@ -490,7 +493,7 @@ class Transaction(Resource):
         try:
             url = self._refund_transaction_url
         except AttributeError:
-            raise ValueError("No refund transaction is available for this transaction")
+            raise ValueError("No refund transaction is available for this transaction") # noqa
 
         resp, elem = self.element_for_url(url)
         value = self.value_for_element(elem)
@@ -517,9 +520,11 @@ class Transaction(Resource):
                 url = anchor_elem.attrib['href']
                 method = anchor_elem.attrib['method'].upper()
         if url is None or method is None:
-            raise AttributeError("refund")  # should do something more specific probably
+            # should do something more specific probably
+            raise AttributeError("refund")
 
-        actionator = self._make_actionator(url, method, extra_handler=self._handle_refund_accepted)
+        actionator = self._make_actionator(
+            url, method, extra_handler=self._handle_refund_accepted)
         return actionator(**kwargs)
 
 
@@ -557,7 +562,8 @@ class Plan(Resource):
 
     def get_add_on(self, add_on_code):
         """Return the `AddOn` for this plan with the given add-on code."""
-        url = urljoin(self._url, '%s/add_ons/%s' % (self.plan_code, add_on_code))
+        url = urljoin(self._url, '%s/add_ons/%s' %
+            (self.plan_code, add_on_code))
         resp, elem = AddOn.element_for_url(url)
         return AddOn.from_element(elem)
 

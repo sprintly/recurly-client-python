@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime
+import json
 import httplib
 import logging
 import socket
@@ -59,6 +60,9 @@ class Money(object):
 
     def __contains__(self, name):
         return name in self.currencies
+
+    def __str__(self):
+        return str(self.currencies)
 
 
 class PageError(ValueError):
@@ -628,6 +632,7 @@ class Resource(object):
         return elem
 
     def to_dict(self):
+        """Serialize this `Resource` instance to an python dictionary."""
         d = {}
         for attr in self.attributes:
             try:
