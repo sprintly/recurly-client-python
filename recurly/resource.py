@@ -2,11 +2,14 @@ import base64
 from datetime import datetime
 import httplib
 import logging
+import socket
+import ssl
 from urllib import urlencode
 from urlparse import urlsplit, urljoin
 from xml.etree import ElementTree
 
 import iso8601
+import backports.ssl_match_hostname
 
 import recurly
 import recurly.errors
@@ -58,6 +61,17 @@ class Money(object):
         return name in self.currencies
 
 
+class PageError(ValueError):
+    """An error raised when requesting to continue to a stream page that
+    doesn't exist.
+
+    This error can be raised when requesting the next page for the last page in
+    a series, or the first page for the first page in a series.
+
+    """
+    pass
+
+
 class Page(list):
 
     """A set of related `Resource` instances retrieved together from
@@ -77,8 +91,8 @@ class Page(list):
         """
         try:
             next_url = self.next_url
-        except KeyError:
-            raise ValueError("Page %r has no next page" % self)
+        except AttributeError:
+            raise PageError("Page %r has no next page" % self)
         return self.page_for_url(next_url)
 
     def first_page(self):
@@ -91,8 +105,8 @@ class Page(list):
         """
         try:
             start_url = self.start_url
-        except KeyError:
-            raise ValueError("Page %r is already the first page" % self)
+        except AttributeError:
+            raise PageError("Page %r is already the first page" % self)
         return self.page_for_url(start_url)
 
     @classmethod
@@ -105,6 +119,14 @@ class Page(list):
 
     @classmethod
     def page_for_value(cls, resp, value):
+        """Return a new `Page` representing the given resource `value`
+        retrieved using the HTTP response `resp`.
+
+        This method records pagination ``Link`` headers present in `resp`, so
+        that the returned `Page` can return their resources from its
+        `next_page()` and `first_page()` methods.
+
+        """
         page = cls(value)
 
         links = parse_link_value(resp.getheader('Link'))
@@ -115,6 +137,29 @@ class Page(list):
                 page.next_url = url
 
         return page
+
+
+class _ValidatedHTTPSConnection(httplib.HTTPSConnection):
+
+    """An `httplib.HTTPSConnection` that validates the SSL connection by
+    requiring certificate validation and checking the connection's intended
+    hostname again the validated certificate's possible hosts."""
+
+    def connect(self):
+        sock = socket.create_connection((self.host, self.port),
+                                        self.timeout, self.source_address)
+        if self._tunnel_host:
+            self.sock = sock
+            self._tunnel()
+
+        ssl_sock = ssl.wrap_socket(sock, self.key_file, self.cert_file,
+            ssl_version=ssl.PROTOCOL_SSLv3, cert_reqs=ssl.CERT_REQUIRED,
+            ca_certs=recurly.CA_CERTS_FILE)
+
+        # Let the CertificateError for failure be raised to the caller.
+        backports.ssl_match_hostname.match_hostname(ssl_sock.getpeercert(), self.host)
+
+        self.sock = ssl_sock
 
 
 class Resource(object):
@@ -171,8 +216,12 @@ class Resource(object):
 
         """
         urlparts = urlsplit(url)
-        connection_class = httplib.HTTPSConnection if urlparts.scheme == 'https' else httplib.HTTPConnection
-        connection = connection_class(urlparts.netloc)
+        if urlparts.scheme != 'https':
+            connection = httplib.HTTPConnection(urlparts.netloc)
+        elif recurly.CA_CERTS_FILE is None:
+            connection = httplib.HTTPSConnection(urlparts.netloc)
+        else:
+            connection = _ValidatedHTTPSConnection(urlparts.netloc)
 
         headers = {} if headers is None else dict(headers)
         headers.update({
@@ -378,7 +427,7 @@ class Resource(object):
         elif isinstance(value, Money):
             value.add_to_element(el)
         else:
-            el.text = str(value)
+            el.text = unicode(value)
 
         return el
 
@@ -405,7 +454,7 @@ class Resource(object):
 
         return self
 
-    def _make_actionator(self, url, method):
+    def _make_actionator(self, url, method, extra_handler=None):
         def actionator(*args, **kwargs):
             if kwargs:
                 full_url = '%s?%s' % (url, urlencode(kwargs))
@@ -426,6 +475,8 @@ class Resource(object):
                 return self.value_for_element(elem)
             elif response.status == 204:
                 pass
+            elif extra_handler is not None:
+                return extra_handler(response)
             else:
                 self.raise_http_error(response)
         return actionator
@@ -470,7 +521,7 @@ class Resource(object):
                     else:
                         full_url = url
 
-                    resp, elem = Resource.element_for_url(url)
+                    resp, elem = Resource.element_for_url(full_url)
                     value = Resource.value_for_element(elem)
 
                     if isinstance(value, list):
@@ -528,14 +579,15 @@ class Resource(object):
         """Sends this `Resource` instance to the service with a
         ``POST`` request to the given URL."""
         response = self.http_request(url, 'POST', self, {'Content-Type': 'application/xml; charset=utf-8'})
-        if response.status != 201:
+        if response.status not in (201, 204):
             self.raise_http_error(response)
 
         self._url = response.getheader('Location')
 
-        response_xml = response.read()
-        logging.getLogger('recurly.http.response').debug(response_xml)
-        self.update_from_element(ElementTree.fromstring(response_xml))
+        if response.status == 201:
+            response_xml = response.read()
+            logging.getLogger('recurly.http.response').debug(response_xml)
+            self.update_from_element(ElementTree.fromstring(response_xml))
 
     def delete(self):
         """Submits a deletion request for this `Resource` instance as

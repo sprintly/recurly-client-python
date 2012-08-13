@@ -1,2 +1,5 @@
 *.py?
 recurly.egg-info
+.*
+build
+dist

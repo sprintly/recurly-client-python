@@ -7,7 +7,7 @@ from xml.etree import ElementTree
 
 import recurly
 from recurly import Account, AddOn, Adjustment, BillingInfo, Coupon, Plan, Redemption, Subscription, SubscriptionAddOn, Transaction
-from recurly import Money, NotFoundError, ValidationError, BadRequestError
+from recurly import Money, NotFoundError, ValidationError, BadRequestError, PageError
 from recurlytests import RecurlyTest, xml
 
 
@@ -52,7 +52,7 @@ class TestResources(RecurlyTest):
 
         account.username = 'shmohawk58'
         account.email = 'larry.david'
-        account.first_name = 'Larry'
+        account.first_name = u'L\xe4rry'
         account.last_name = 'David'
         account.company_name = 'Home Box Office'
         account.accept_language = 'en-US'
@@ -188,7 +188,7 @@ class TestResources(RecurlyTest):
                 first_name='Verena',
                 last_name='Example',
                 address1='123 Main St',
-                city='San Francisco',
+                city=u'San Jos\xe9',
                 state='CA',
                 zip='94105',
                 country='US',
@@ -213,6 +213,7 @@ class TestResources(RecurlyTest):
             with self.mock_request('billing-info/exists.xml'):
                 same_binfo = same_account.billing_info
             self.assertEqual(same_binfo.first_name, 'Verena')
+            self.assertEqual(same_binfo.city, u'San Jos\xe9')
 
             with self.mock_request('billing-info/deleted.xml'):
                 binfo.delete()
@@ -229,7 +230,7 @@ class TestResources(RecurlyTest):
             first_name='Verena',
             last_name='Example',
             address1='123 Main St',
-            city='San Francisco',
+            city=u'San Jos\xe9',
             state='CA',
             zip='94105',
             country='US',
@@ -273,7 +274,7 @@ class TestResources(RecurlyTest):
             with self.mock_request('adjustment/charged.xml'):
                 account.charge(charge)
 
-            with self.mock_request('adjustment/account-has-charges.xml'):
+            with self.mock_request('adjustment/account-has-adjustments.xml'):
                 charges = account.adjustments()
             self.assertEqual(len(charges), 1)
             same_charge = charges[0]
@@ -281,6 +282,15 @@ class TestResources(RecurlyTest):
             self.assertEqual(same_charge.currency, 'USD')
             self.assertEqual(same_charge.description, 'test charge')
             self.assertEqual(same_charge.type, 'charge')
+
+            with self.mock_request('adjustment/account-has-charges.xml'):
+                charges = account.adjustments(type='charge')
+            self.assertEqual(len(charges), 1)
+
+            with self.mock_request('adjustment/account-has-no-credits.xml'):
+                credits = account.adjustments(type='credit')
+            self.assertEqual(len(credits), 0)
+
         finally:
             with self.mock_request('adjustment/account-deleted.xml'):
                 account.delete()
@@ -388,6 +398,26 @@ class TestResources(RecurlyTest):
                     with self.mock_request('coupon/second-account-deleted.xml'):
                         account_2.delete()
 
+                plan_coupon = Coupon(
+                    coupon_code='plancoupon%s' % self.test_id,
+                    name='Plan Coupon',
+                    discount_in_cents=Money(1000),
+                    applies_to_all_plans=False,
+                    plan_codes=('basicplan',),
+                )
+                with self.mock_request('coupon/plan-coupon-created.xml'):
+                    plan_coupon.save()
+
+                try:
+                    self.assertTrue(plan_coupon._url)
+
+                    coupon_plans = list(plan_coupon.plan_codes)
+                    self.assertEqual(len(coupon_plans), 1)
+                    self.assertEqual(coupon_plans[0], 'basicplan')
+                finally:
+                    with self.mock_request('coupon/plan-coupon-deleted.xml'):
+                        plan_coupon.delete()
+
             finally:
                 with self.mock_request('coupon/plan-deleted.xml'):
                     plan.delete()
@@ -448,6 +478,11 @@ class TestResources(RecurlyTest):
             self.assertRaises(IndexError, lambda: accounts[4])
             self.assertEqual(accounts[0].account_code, account_code % 7)
             self.assertEqual(accounts[3].account_code, account_code % 4)
+
+            # Test errors, since the first page has no first page.
+            self.assertRaises(PageError, lambda: accounts.first_page())
+            # Make sure PageError is a ValueError.
+            self.assertRaises(ValueError, lambda: accounts.first_page())
 
             with self.mock_request('pages/next-list.xml'):
                 next_accounts = accounts.next_page()
@@ -544,7 +579,7 @@ class TestResources(RecurlyTest):
                     first_name='Verena',
                     last_name='Example',
                     address1='123 Main St',
-                    city='San Francisco',
+                    city=u'San Jos\xe9',
                     state='CA',
                     zip='94105',
                     country='US',
@@ -602,7 +637,7 @@ class TestResources(RecurlyTest):
                             first_name='Verena',
                             last_name='Example',
                             address1='123 Main St',
-                            city='San Francisco',
+                            city=u'San Jos\xe9',
                             state='CA',
                             zip='94105',
                             country='US',
@@ -639,7 +674,7 @@ class TestResources(RecurlyTest):
                         first_name='Verena',
                         last_name='Example',
                         address1='123 Main St',
-                        city='San Francisco',
+                        city=u'San Jos\xe9',
                         state='CA',
                         zip='94105',
                         country='US',
@@ -772,6 +807,13 @@ class TestResources(RecurlyTest):
 
         logger.removeHandler(log_handler)
 
+        try:
+            transaction.get_refund_transaction()
+        except ValueError:
+            pass
+        else:
+            self.fail("Transaction with no refund transaction did not raise a ValueError from get_refund_transaction()")
+
         with self.mock_request('transaction/account-exists.xml'):
             account = Account.get(account_code)
 
@@ -784,7 +826,7 @@ class TestResources(RecurlyTest):
             self.assertTrue('7777' not in log_content)
 
             with self.mock_request('transaction/refunded.xml'):
-                refund_transaction = transaction.refund()
+                refunded_transaction = transaction.refund()
 
             transaction_2 = Transaction(
                 amount_in_cents=1000,
@@ -797,13 +839,113 @@ class TestResources(RecurlyTest):
             self.assertTrue(transaction_2.refundable)
 
             with self.mock_request('transaction/partial-refunded.xml'):
-                refund_transaction = transaction_2.refund(amount_in_cents=700)
+                refunded_transaction = transaction_2.refund(amount_in_cents=700)
+            self.assertTrue(refunded_transaction is transaction_2)
+            self.assertTrue(hasattr(transaction_2, 'get_refund_transaction'))
+            with self.mock_request('transaction/partial-refunded-transaction.xml'):
+                refund_transaction = transaction_2.get_refund_transaction()
             self.assertTrue(isinstance(refund_transaction, Transaction))
             self.assertTrue(not refund_transaction.refundable)
             self.assertNotEqual(refund_transaction.uuid, transaction_2.uuid)
 
         finally:
             with self.mock_request('transaction/account-deleted.xml'):
+                account.delete()
+
+    def test_transaction_with_balance(self):
+        transaction = Transaction(
+            amount_in_cents=1000,
+            currency='USD',
+            account=Account(),
+        )
+        with self.mock_request('transaction-balance/transaction-no-account.xml'):
+            try:
+                transaction.save()
+            except ValidationError, error:
+                pass
+            else:
+                self.fail("Posting a transaction without an account code did not raise a ValidationError")
+        # Make sure there really were errors.
+        self.assertTrue(len(error.errors) > 0)
+
+        account_code = 'transbalance%s' % self.test_id
+        account = Account(account_code=account_code)
+        with self.mock_request('transaction-balance/account-created.xml'):
+            account.save()
+
+        try:
+            # Try to charge without billing info, should break.
+            transaction = Transaction(
+                amount_in_cents=1000,
+                currency='USD',
+                account=account,
+            )
+            with self.mock_request('transaction-balance/transaction-no-billing-fails.xml'):
+                try:
+                    transaction.save()
+                except ValidationError, error:
+                    pass
+                else:
+                    self.fail("Posting a transaction without billing info did not raise a ValidationError")
+            # Make sure there really were errors.
+            self.assertTrue(len(error.errors) > 0)
+
+            binfo = BillingInfo(
+                first_name='Verena',
+                last_name='Example',
+                address1='123 Main St',
+                city=u'San Jos\xe9',
+                state='CA',
+                zip='94105',
+                country='US',
+                type='credit_card',
+                number='4111 1111 1111 1111',
+                verification_value='7777',
+                year='2015',
+                month='12',
+            )
+            with self.mock_request('transaction-balance/set-billing-info.xml'):
+                account.update_billing_info(binfo)
+
+            # Try to charge now, should be okay.
+            transaction = Transaction(
+                amount_in_cents=1000,
+                currency='USD',
+                account=account,
+            )
+            with self.mock_request('transaction-balance/transacted.xml'):
+                transaction.save()
+
+            # Give the account a credit.
+            credit = Adjustment(unit_amount_in_cents=-2000, currency='USD', description='transaction test credit')
+            with self.mock_request('transaction-balance/credited.xml'):
+                # TODO: maybe this should be adjust()?
+                account.charge(credit)
+
+            # Try to charge less than the account balance, which should fail (not a CC transaction).
+            transaction = Transaction(
+                amount_in_cents=500,
+                currency='USD',
+                account=account,
+            )
+            with self.mock_request('transaction-balance/transacted-2.xml'):
+                transaction.save()
+            # The transaction doesn't actually save.
+            self.assertTrue(transaction._url is None)
+
+            # Try to charge more than the account balance, which should work.
+            transaction = Transaction(
+                amount_in_cents=3000,
+                currency='USD',
+                account=account,
+            )
+            with self.mock_request('transaction-balance/transacted-3.xml'):
+                transaction.save()
+            # This transaction should be recorded.
+            self.assertTrue(transaction._url is not None)
+
+        finally:
+            with self.mock_request('transaction-balance/account-deleted.xml'):
                 account.delete()
 
 

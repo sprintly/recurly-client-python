@@ -5,7 +5,7 @@ from xml.etree import ElementTree
 
 import recurly.js as js
 from recurly.errors import *
-from recurly.resource import Resource, Money
+from recurly.resource import Resource, Money, PageError
 
 
 """
@@ -19,13 +19,17 @@ http://docs.recurly.com/api/
 """
 
 
-__version__ = '2.0.4'
+__version__ = '2.1.4'
 
 BASE_URI = 'https://api.recurly.com/v2/'
 """The API endpoint to send requests to."""
 
 API_KEY = None
 """The API key to use when authenticating API requests."""
+
+CA_CERTS_FILE = None
+"""A file contianing a set of concatenated certificate authority certs
+for validating the server against."""
 
 DEFAULT_CURRENCY = 'USD'
 """The currency to use creating `Money` instances when one is not specified."""
@@ -54,6 +58,16 @@ class Account(Resource):
 
     def to_element(self):
         elem = super(Account, self).to_element()
+
+        # Make sure the account code is always included in a serialization.
+        if 'account_code' not in self.__dict__:  # not already included
+            try:
+                account_code = self.account_code
+            except AttributeError:
+                pass
+            else:
+                elem.append(self.element_for_value('account_code', account_code))
+
         if 'billing_info' in self.__dict__:
             elem.append(self.billing_info.to_element())
         return elem
@@ -228,6 +242,27 @@ class Coupon(Resource):
         'created_at',
         'plan_codes',
     )
+
+    @classmethod
+    def value_for_element(cls, elem):
+        if not elem or elem.tag != 'plan_codes' or elem.attrib.get('type') != 'array':
+            return super(Coupon, cls).value_for_element(elem)
+
+        return [code_elem.text for code_elem in elem]
+
+    @classmethod
+    def element_for_value(cls, attrname, value):
+        if attrname != 'plan_codes':
+            return super(Coupon, cls).element_for_value(attrname, value)
+
+        elem = ElementTree.Element(attrname)
+        elem.attrib['type'] = 'array'
+        for code in value:
+            code_el = ElementTree.Element('plan_code')
+            code_el.text = code
+            elem.append(code_el)
+
+        return elem
 
     @classmethod
     def all_redeemable(cls, **kwargs):
@@ -436,6 +471,56 @@ class Transaction(Resource):
     )
     xml_attribute_attributes = ('type',)
     sensitive_attributes = ('number', 'verification_value',)
+
+    def _handle_refund_accepted(self, response):
+        if response.status != 202:
+            self.raise_http_error(response)
+
+        self._refund_transaction_url = response.getheader('Location')
+        return self
+
+    def get_refund_transaction(self):
+        """Retrieve the refund transaction for this transaction, immediately
+        after refunding.
+
+        After calling `refund()` to refund a transaction, call this method to
+        retrieve the new transaction representing the refund.
+
+        """
+        try:
+            url = self._refund_transaction_url
+        except AttributeError:
+            raise ValueError("No refund transaction is available for this transaction")
+
+        resp, elem = self.element_for_url(url)
+        value = self.value_for_element(elem)
+        return value
+
+    def refund(self, **kwargs):
+        """Refund this transaction.
+
+        Calling this method returns the refunded transaction (that is,
+        ``self``) if the refund was successful, or raises a `ResponseError` if
+        an error occurred requesting the refund. After a successful call to
+        `refund()`, to retrieve the new transaction representing the refund,
+        use the `get_refund_transaction()` method.
+
+        """
+        # Find the URL and method to refund the transaction.
+        try:
+            selfnode = self._elem
+        except AttributeError:
+            raise AttributeError('refund')
+        url, method = None, None
+        for anchor_elem in selfnode.findall('a'):
+            if anchor_elem.attrib.get('name') == 'refund':
+                url = anchor_elem.attrib['href']
+                method = anchor_elem.attrib['method'].upper()
+        if url is None or method is None:
+            raise AttributeError("refund")  # should do something more specific probably
+
+        actionator = self._make_actionator(url, method, extra_handler=self._handle_refund_accepted)
+        return actionator(**kwargs)
 
 
 class Plan(Resource):
