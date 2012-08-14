@@ -4,6 +4,8 @@ from xml.etree import ElementTree
 
 from recurly.resource import Resource
 
+from . import js  # noqa
+
 
 """
 
