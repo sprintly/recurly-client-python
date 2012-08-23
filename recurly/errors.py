@@ -1,4 +1,3 @@
-import httplib
 from xml.etree import ElementTree
 
 

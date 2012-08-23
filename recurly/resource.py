@@ -1,6 +1,5 @@
 import base64
 from datetime import datetime
-import json
 import httplib
 import logging
 import socket
@@ -23,13 +22,14 @@ class Money(object):
 
     def __init__(self, *args, **kwargs):
         if args and kwargs:
-            raise ValueError("Money may be single currency or multi-currency but not both")
+            raise ValueError("Money may be single currency "
+                "or multi-currency but not both")
         elif kwargs:
             self.currencies = dict(kwargs)
         elif args and len(args) > 1:
             raise ValueError("Multi-currency Money must be instantiated with codes")
         elif args:
-            self.currencies = { recurly.DEFAULT_CURRENCY: args[0] }
+            self.currencies = {recurly.DEFAULT_CURRENCY: args[0]}
         else:
             self.currencies = dict()
 
@@ -194,8 +194,8 @@ class Resource(object):
 
     def __init__(self, **kwargs):
         try:
-            self.attributes.index('currency') # Test for currency attribute,
-            self.currency                     # and test if it's set.
+            self.attributes.index('currency')  # Test for currency attribute,
+            self.currency                      # and test if it's set.
         except ValueError:
             pass
         except AttributeError:
@@ -592,6 +592,7 @@ class Resource(object):
             response_xml = response.read()
             logging.getLogger('recurly.http.response').debug(response_xml)
             self.update_from_element(ElementTree.fromstring(response_xml))
+            self.response_xml = response_xml
 
     def delete(self):
         """Submits a deletion request for this `Resource` instance as
