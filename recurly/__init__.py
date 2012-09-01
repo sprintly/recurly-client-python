@@ -5,17 +5,11 @@ from xml.etree import ElementTree
 from recurly.resource import Resource
 from . import js  # noqa
 
-from . import js  # noqa
-
 
 """
-
 Recurly's Python client library is an interface to its REST API.
-
 Please see the Recurly API documentation for more information:
-
 http://docs.recurly.com/api/
-
 """
 
 
@@ -46,12 +40,14 @@ class Account(Resource):
 
     attributes = (
         'account_code',
+        'state',
         'username',
         'email',
         'first_name',
         'last_name',
         'company_name',
         'accept_language',
+        'hosted_login_token',
         'created_at',
     )
     sensitive_attributes = ('number', 'verification_value',)
@@ -529,6 +525,27 @@ class Transaction(Resource):
         actionator = self._make_actionator(
             url, method, extra_handler=self._handle_refund_accepted)
         return actionator(**kwargs)
+
+
+class Details(Resource):
+
+    """Additional transaction information recorded at the time the transaction
+    was submitted.
+
+    This will include the account and billing information as it was at the time
+    the transaction took place. It may not reflect the latest account
+    information. A `transaction_error` section will be included if the
+    transaction failed.
+
+    """
+
+    nodename = 'details'
+    inherits_currency = False
+
+    attributes = (
+        'account',
+        'transaction_error'
+    )
 
 
 class Plan(Resource):
