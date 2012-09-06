@@ -186,6 +186,9 @@ class Resource(object):
     xml_attribute_attributes = ()
     """Attributes of a `Resource` of this class that are not serialized
     as subelements, but rather attributes of the top level element."""
+    linked_attributes = ()
+    """Attributes of a `Resource` of this class that contain links to related
+    resources."""
     inherits_currency = False
     """Whether a `Resource` of this class inherits a currency from a
     parent `Resource`, and therefore should not use `Money` instances
@@ -296,7 +299,7 @@ class Resource(object):
             cls._classes_for_nodename[nodename] = resource_class
 
     @classmethod
-    def get(cls, uuid):
+    def get(cls, uuid, **kwargs):
         """Return a `Resource` instance of this class identified by
         the given code or UUID.
 
@@ -536,6 +539,40 @@ class Resource(object):
 
         return self.value_for_element(elem)
 
+    def link(self, name):
+        if name not in self.linked_attributes:
+            raise AttributeError(name)
+
+        try:
+            selfnode = self._elem
+        except AttributeError:
+            raise AttributeError(name)
+
+        elem = selfnode.find(self.__getpath__(name))
+
+        if elem is None:
+            raise AttributeError(name)
+
+        # Follow links.
+        if 'href' in elem.attrib:
+            def make_relatitator(url):
+                def relatitator(**kwargs):
+                    if kwargs:
+                        full_url = '%s?%s' % (url, urlencode(kwargs))
+                    else:
+                        full_url = url
+
+                    resp, elem = Resource.element_for_url(full_url)
+                    value = Resource.value_for_element(elem)
+
+                    if isinstance(value, list):
+                        return Page.page_for_value(resp, value)
+                    return value
+                return relatitator
+            self.name = make_relatitator(elem.attrib['href'])
+
+        return self.name
+
     @classmethod
     def all(cls, **kwargs):
         """Return a `Page` of instances of this `Resource` class from
@@ -640,4 +677,12 @@ class Resource(object):
                 d[attr] = getattr(self, attr)
             except AttributeError:
                 pass
+        for attr in self.linked_attributes:
+            try:
+                selfnode = self._elem
+                elem = selfnode.find(self.__getpath__(attr))
+                d[attr] = elem.attrib['href']
+            except AttributeError:
+                pass
+
         return d

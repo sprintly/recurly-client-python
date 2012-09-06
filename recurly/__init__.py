@@ -51,6 +51,13 @@ class Account(Resource):
         'created_at',
     )
     sensitive_attributes = ('number', 'verification_value',)
+    linked_attributes = (
+        'adjustments',
+        'invoices',
+        'redemption',
+        'subscriptions',
+        'transactions',
+    )
 
     def to_element(self):
         elem = super(Account, self).to_element()
@@ -217,6 +224,7 @@ class BillingInfo(Resource):
     )
     sensitive_attributes = ('number', 'verification_value')
     xml_attribute_attributes = ('type',)
+    linked_attributes = ('account',)
 
 
 class Coupon(Resource):
@@ -242,6 +250,7 @@ class Coupon(Resource):
         'created_at',
         'plan_codes',
     )
+    linked_attributes = ('redemptions',)
 
     @classmethod
     def value_for_element(cls, elem):
@@ -306,7 +315,11 @@ class Redemption(Resource):
         'total_discounted_in_cents',
         'currency',
         'created_at',
+
+        # 'coupon',
+        # 'account',
     )
+    linked_attributes = ('account', 'coupon',)
 
 
 class Adjustment(Resource):
@@ -333,6 +346,7 @@ class Adjustment(Resource):
         'type',
     )
     xml_attribute_attributes = ('type',)
+    linked_attributes = ('account',)
 
 
 class Invoice(Resource):
@@ -359,6 +373,7 @@ class Invoice(Resource):
         'line_items',
         'transactions',
     )
+    linked_attributes = ('account',)
 
     @classmethod
     def all_open(cls, **kwargs):
@@ -424,11 +439,11 @@ class Subscription(Resource):
         'total_billing_cycles',
         'timeframe',
         'currency',
-        'subscription_add_ons',
-        'account',
         'pending_subscription',
+        'subscription_add_ons',
     )
     sensitive_attributes = ('number', 'verification_value',)
+    linked_attributes = ('account',)
 
     def _update(self):
         if not hasattr(self, 'timeframe'):
@@ -454,7 +469,6 @@ class Transaction(Resource):
     attributes = (
         'uuid',
         'action',
-        'account',
         'currency',
         'amount_in_cents',
         'tax_in_cents',
@@ -470,9 +484,13 @@ class Transaction(Resource):
         'created_at',
         'details',
         'type',
+        'transaction_error',
+
+        # 'account',
     )
     xml_attribute_attributes = ('type',)
     sensitive_attributes = ('number', 'verification_value',)
+    linked_attributes = ('account', 'invoice', 'subscription')
 
     def _handle_refund_accepted(self, response):
         if response.status != 202:
@@ -547,6 +565,26 @@ class Details(Resource):
         'transaction_error'
     )
 
+class TransactionError(Resource):
+
+    """When Recurly encounters an error submitting a payment to your gateway,
+    it parses the error code. From your gateway's error code, Recurly generates
+    a friendly error message that can be displayed to your user and returns it
+    in the error object. In addition, Recurly sets a code on the error to let
+    you know exactly why the transaction was declined.
+
+    """
+
+    nodename = 'transaction_error'
+    inherits_currency = False
+
+    attributes = (
+        'error_code',
+        'error_category',
+        'merchant_message',
+        'customer_message',
+    )
+
 
 class Plan(Resource):
 
@@ -579,6 +617,7 @@ class Plan(Resource):
         'unit_amount_in_cents',
         'setup_fee_in_cents',
     )
+    linked_attributes = ('add_ons',)
 
     def get_add_on(self, add_on_code):
         """Return the `AddOn` for this plan with the given add-on code."""
@@ -610,6 +649,7 @@ class AddOn(Resource):
         'unit_amount_in_cents',
         'created_at',
     )
+    linked_attributes = ('plan',)
 
 
 class SubscriptionAddOn(Resource):
