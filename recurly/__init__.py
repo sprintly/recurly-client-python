@@ -58,6 +58,14 @@ class Account(Resource):
         'subscriptions',
         'transactions',
     )
+    js_attributes = (
+        'account_code',
+        'username',
+        'email',
+        'first_name',
+        'last_name',
+        'company_name',
+    )
 
     def to_element(self):
         elem = super(Account, self).to_element()
@@ -225,6 +233,19 @@ class BillingInfo(Resource):
     sensitive_attributes = ('number', 'verification_value')
     xml_attribute_attributes = ('type',)
     linked_attributes = ('account',)
+    js_attributes = (
+        'first_name',
+        'last_name',
+        'company',
+        'address1',
+        'address2',
+        'city',
+        'state',
+        'zip',
+        'country',
+        'phone',
+        'vat_number',
+    )
 
 
 class Coupon(Resource):
@@ -437,6 +458,7 @@ class Subscription(Resource):
         'trial_ends_at',
         'unit_amount_in_cents',
         'total_billing_cycles',
+        'first_renewal_date',
         'timeframe',
         'currency',
         'pending_subscription',
@@ -444,6 +466,16 @@ class Subscription(Resource):
     )
     sensitive_attributes = ('number', 'verification_value',)
     linked_attributes = ('account',)
+    js_attributes = (
+        'plan_code',
+        'coupon_code',
+        'quantity',
+        'starts_at',
+        'trial_ends_at',
+        'unit_amount_in_cents',
+        'total_billing_cycles',
+        'first_renewal_date',
+    )
 
     def _update(self):
         if not hasattr(self, 'timeframe'):
@@ -491,6 +523,12 @@ class Transaction(Resource):
     xml_attribute_attributes = ('type',)
     sensitive_attributes = ('number', 'verification_value',)
     linked_attributes = ('account', 'invoice', 'subscription')
+    js_attributes = (
+        'currency',
+        'amount_in_cents',
+        # 'dscription',
+        # 'accounting_code',
+    )
 
     def _handle_refund_accepted(self, response):
         if response.status != 202:
@@ -618,6 +656,27 @@ class Plan(Resource):
         'setup_fee_in_cents',
     )
     linked_attributes = ('add_ons',)
+    js_attributes = (
+        'plan_code',
+        'name',
+        'description',
+        'success_url',
+        'cancel_url',
+        'display_donation_amounts',
+        'display_quantity',
+        'display_phone_number',
+        'bypass_hosted_confirmation',
+        'unit_name',
+        'payment_page_tos_link',
+        'plan_interval_length',
+        'plan_interval_unit',
+        'trial_interval_length',
+        'trial_interval_unit',
+        'accounting_code',
+        'created_at',
+        'unit_amount_in_cents',
+        'setup_fee_in_cents',
+    )
 
     def get_add_on(self, add_on_code):
         """Return the `AddOn` for this plan with the given add-on code."""

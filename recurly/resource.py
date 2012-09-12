@@ -189,6 +189,8 @@ class Resource(object):
     linked_attributes = ()
     """Attributes of a `Resource` of this class that contain links to related
     resources."""
+    js_attributes = ()
+    """List of Resource attributes to use for Recurly.js options (as JSON)."""
     inherits_currency = False
     """Whether a `Resource` of this class inherits a currency from a
     parent `Resource`, and therefore should not use `Money` instances
@@ -669,20 +671,25 @@ class Resource(object):
                 elem.append(sub_elem)
         return elem
 
-    def to_dict(self):
+    def to_dict(self, js=False):
         """Serialize this `Resource` instance to an python dictionary."""
+
         d = {}
-        for attr in self.attributes:
+        a = self.attributes if not js else self.js_attributes
+        for attr in a:
             try:
                 d[attr] = getattr(self, attr)
+                d[attr] = d[attr].to_dict(js=js)
             except AttributeError:
                 pass
-        for attr in self.linked_attributes:
-            try:
-                selfnode = self._elem
-                elem = selfnode.find(self.__getpath__(attr))
-                d[attr] = elem.attrib['href']
-            except AttributeError:
-                pass
+
+        if not js:
+            for attr in self.linked_attributes:
+                try:
+                    selfnode = self._elem
+                    elem = selfnode.find(self.__getpath__(attr))
+                    d[attr] = elem.attrib['href']
+                except AttributeError:
+                    pass
 
         return d
