@@ -488,6 +488,69 @@ class Subscription(Resource):
         else:
             return name
 
+    @classmethod
+    def all_live(cls, **kwargs):
+        """Return a `Page` of subscriptions that are not expired.
+
+        This is a convenience method for `Subscription.all(state='live')`.
+
+        """
+        return cls.all(state='live', **kwargs)
+
+    @classmethod
+    def all_active(cls, **kwargs):
+        """Return a `Page` of subscriptions that are valid for the current time. This includes subscriptions in a trial period.
+
+        This is a convenience method for `Subscription.all(state='active')`.
+
+        """
+        return cls.all(state='live', **kwargs)
+
+    @classmethod
+    def all_canceled(cls, **kwargs):
+        """Return a `Page` of subscriptions that are valid for the current time but will not renew because a cancelation was requested.
+
+        This is a convenience method for `Subscription.all(state='canceled')`.
+
+        """
+        return cls.all(state='canceled', **kwargs)
+
+    @classmethod
+    def all_expired(cls, **kwargs):
+        """Return a `Page` of subscriptions that have expired and are no longer valid.
+
+        This is a convenience method for `Subscription.all(state='expired')`.
+
+        """
+        return cls.all(state='canceled', **kwargs)
+
+    @classmethod
+    def all_future(cls, **kwargs):
+        """Return a `Page` of subscriptions that will start in the future, they are not active yet.
+
+        This is a convenience method for `Subscription.all(state='future')`.
+
+        """
+        return cls.all(state='canceled', **kwargs)
+
+    @classmethod
+    def all_trial(cls, **kwargs):
+        """Return a `Page` of subscriptions that are active or canceled and are in a trial period.
+
+        This is a convenience method for `Subscription.all(state='in_trial')`.
+
+        """
+        return cls.all(state='canceled', **kwargs)
+
+    @classmethod
+    def all_past_due(cls, **kwargs):
+        """Return a `Page` of subscriptions that are active or canceled and have a past-due invoice.
+
+        This is a convenience method for `Subscription.all(state='past_due')`.
+
+        """
+        return cls.all(state='canceled', **kwargs)
+
 
 class Transaction(Resource):
 
