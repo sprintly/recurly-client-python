@@ -504,7 +504,7 @@ class Subscription(Resource):
         This is a convenience method for `Subscription.all(state='active')`.
 
         """
-        return cls.all(state='live', **kwargs)
+        return cls.all(state='active', **kwargs)
 
     @classmethod
     def all_canceled(cls, **kwargs):
@@ -522,7 +522,7 @@ class Subscription(Resource):
         This is a convenience method for `Subscription.all(state='expired')`.
 
         """
-        return cls.all(state='canceled', **kwargs)
+        return cls.all(state='expired', **kwargs)
 
     @classmethod
     def all_future(cls, **kwargs):
@@ -531,7 +531,7 @@ class Subscription(Resource):
         This is a convenience method for `Subscription.all(state='future')`.
 
         """
-        return cls.all(state='canceled', **kwargs)
+        return cls.all(state='future', **kwargs)
 
     @classmethod
     def all_trial(cls, **kwargs):
@@ -540,7 +540,7 @@ class Subscription(Resource):
         This is a convenience method for `Subscription.all(state='in_trial')`.
 
         """
-        return cls.all(state='canceled', **kwargs)
+        return cls.all(state='in_trial', **kwargs)
 
     @classmethod
     def all_past_due(cls, **kwargs):
@@ -549,7 +549,7 @@ class Subscription(Resource):
         This is a convenience method for `Subscription.all(state='past_due')`.
 
         """
-        return cls.all(state='canceled', **kwargs)
+        return cls.all(state='past_due', **kwargs)
 
 
 class Transaction(Resource):

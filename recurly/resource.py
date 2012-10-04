@@ -691,5 +691,4 @@ class Resource(object):
                     d[attr] = elem.attrib['href']
                 except AttributeError:
                     pass
-
         return d
