@@ -580,7 +580,6 @@ class Transaction(Resource):
         'details',
         'transaction_error',
         'type',
-        'transaction_error',
 
         # 'account',
     )
