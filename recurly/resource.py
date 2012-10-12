@@ -271,7 +271,7 @@ class Resource(object):
 
         return resp
 
-    def as_log_output(self):
+    def as_log_output(self, full=False):
         """Returns an XML string containing a serialization of this
         instance suitable for logging.
 
@@ -279,7 +279,7 @@ class Resource(object):
         redacted.
 
         """
-        elem = self.to_element()
+        elem = self.to_element(full=full)
         for attrname in self.sensitive_attributes:
             for sensitive_el in elem.getiterator(attrname):
                 sensitive_el.text = 'XXXXXXXXXXXXXXXX'
@@ -650,8 +650,11 @@ class Resource(object):
         exc_class = recurly.errors.error_class_for_http_status(response.status)
         raise exc_class(response_xml)
 
-    def to_element(self):
+    def to_element(self, full=False):
         """Serialize this `Resource` instance to an XML element."""
+        if full:
+            return self._elem
+
         elem = ElementTree.Element(self.nodename)
         for attrname in self.attributes:
             # Only use values that have been loaded into the internal
