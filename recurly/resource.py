@@ -340,8 +340,7 @@ class Resource(object):
 
     @classmethod
     def value_for_element(cls, elem):
-        """Deserialize the given XML `Element` into its representative
-        value.
+        """Deserialize the given XML `Element` into its representative value.
 
         Depending on the content of the element, the returned value may be:
         * a string, integer, or boolean value
