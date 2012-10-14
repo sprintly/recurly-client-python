@@ -443,7 +443,9 @@ class Resource(object):
     def from_element(cls, elem):
         """Return a new instance of this `Resource` class representing
         the given XML element."""
-        return cls().update_from_element(elem)
+
+        el = ElementTree.fromstring(elem) if isinstance(elem, basestring) else elem
+        return cls().update_from_element(el)
 
     def update_from_element(self, elem):
         """Reset this `Resource` instance to represent the values in
