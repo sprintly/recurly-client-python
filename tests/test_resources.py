@@ -7,7 +7,8 @@ from xml.etree import ElementTree
 
 import recurly
 from recurly import Account, AddOn, Adjustment, BillingInfo, Coupon, Plan, Redemption, Subscription, SubscriptionAddOn, Transaction
-from recurly import Money, NotFoundError, ValidationError, BadRequestError, PageError
+from recurly.resource import Money, PageError
+from recurly.errors import NotFoundError, ValidationError, BadRequestError, UnauthorizedError
 from recurlytests import RecurlyTest, xml
 
 
@@ -20,7 +21,7 @@ class TestResources(RecurlyTest):
         with self.mock_request('authentication/unauthenticated.xml'):
             try:
                 Account.get(account_code)
-            except recurly.UnauthorizedError, exc:
+            except UnauthorizedError, exc:
                 pass
             else:
                 self.fail("Updating account with invalid email address did not raise a ValidationError")

@@ -67,8 +67,8 @@ class Account(Resource):
         'company_name',
     )
 
-    def to_element(self):
-        elem = super(Account, self).to_element()
+    def to_element(self, full=False):
+        elem = super(Account, self).to_element(full)
 
         # Make sure the account code is always included in a serialization.
         if 'account_code' not in self.__dict__:  # not already included
@@ -463,6 +463,8 @@ class Subscription(Resource):
         'currency',
         'pending_subscription',
         'subscription_add_ons',
+
+        'account',
     )
     sensitive_attributes = ('number', 'verification_value',)
     linked_attributes = ('account',)
@@ -581,7 +583,7 @@ class Transaction(Resource):
         'transaction_error',
         'type',
 
-        # 'account',
+        'account',
     )
     xml_attribute_attributes = ('type',)
     sensitive_attributes = ('number', 'verification_value',)

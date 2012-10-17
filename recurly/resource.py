@@ -279,7 +279,7 @@ class Resource(object):
         redacted.
 
         """
-        elem = self.to_element(full=full)
+        elem = self.to_element(full)
         for attrname in self.sensitive_attributes:
             for sensitive_el in elem.getiterator(attrname):
                 sensitive_el.text = 'XXXXXXXXXXXXXXXX'
