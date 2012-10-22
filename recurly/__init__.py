@@ -68,7 +68,7 @@ class Account(Resource):
     )
 
     def to_element(self, full=False):
-        elem = super(Account, self).to_element(full)
+        elem = super(Account, self).to_element(full=full)
 
         # Make sure the account code is always included in a serialization.
         if 'account_code' not in self.__dict__:  # not already included
