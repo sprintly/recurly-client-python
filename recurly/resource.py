@@ -234,9 +234,10 @@ class Resource(object):
 
         headers = {} if headers is None else dict(headers)
         headers.update({
-            'Accept': 'application/xml',
             'User-Agent': 'recurly-python/%s' % recurly.__version__,
         })
+        if 'Accept' not in headers:
+            headers['Accept'] = 'application/xml'
         if recurly.API_KEY is not None:
             headers['Authorization'] = 'Basic %s' % base64.b64encode('%s:' % recurly.API_KEY)
 

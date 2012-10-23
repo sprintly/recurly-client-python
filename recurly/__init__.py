@@ -396,6 +396,23 @@ class Invoice(Resource):
     )
     linked_attributes = ('account',)
 
+    def as_pdf(self, **kwargs):
+        """Return the resource at the given URL, as a
+        (`httplib.HTTPResponse`, `xml.etree.ElementTree.Element`) tuple
+        resulting from a ``GET`` request to that URL."""
+        cls = self.__class__
+        url = urljoin(BASE_URI, self.member_path % (self.attributes['uuid'],))
+
+        response = cls.http_request(url, headers={'Accept': 'application/pdf'})
+        if response.status != 200:
+            cls.raise_http_error(response)
+
+        assert response.getheader('Content-Type').startswith('application/pdf')
+
+        response_pdf = response.read()
+
+        return response_pdf
+
     @classmethod
     def all_open(cls, **kwargs):
         """Return a `Page` of open invoices.
