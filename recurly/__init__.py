@@ -13,7 +13,7 @@ http://docs.recurly.com/api/
 """
 
 
-__version__ = '2.1.5'
+__version__ = '2.1.6'
 
 BASE_URI = 'https://api.recurly.com/v2/'
 """The API endpoint to send requests to."""
@@ -590,6 +590,7 @@ class Transaction(Resource):
         'reference',
         'test',
         'voidable',
+        'description',
         'refundable',
         'cvv_result',
         'avs_result',
