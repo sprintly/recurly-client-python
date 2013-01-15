@@ -94,7 +94,8 @@ class Page(list):
             try:
                 page = page.next_page()
             except PageError:
-                del self.next_url
+                if hasattr(self, 'next_url'):
+                    del self.next_url
                 raise StopIteration
 
     def __len__(self):
