@@ -92,7 +92,7 @@ class Page(list):
             for x in list.__iter__(page):
                 yield x
             try:
-                page = page.next_page()                                                                                                                          
+                page = page.next_page()
             except PageError:
                 raise StopIteration
 

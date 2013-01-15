@@ -40,6 +40,7 @@ class Account(Resource):
 
     attributes = (
         'account_code',
+        # 'billing_info',
         'state',
         'username',
         'email',
@@ -336,9 +337,6 @@ class Redemption(Resource):
         'total_discounted_in_cents',
         'currency',
         'created_at',
-
-        # 'coupon',
-        # 'account',
     )
     linked_attributes = ('account', 'coupon',)
 
@@ -481,6 +479,8 @@ class Subscription(Resource):
         'pending_subscription',
         'subscription_add_ons',
 
+        # TODO: (IW) This should be a linked_attribute, but it breaks
+        # Django-Recurly unless it's here - figure out why and fix it.
         'account',
     )
     sensitive_attributes = ('number', 'verification_value',)
@@ -601,6 +601,8 @@ class Transaction(Resource):
         'transaction_error',
         'type',
 
+        # TODO: (IW) This should be a linked_attribute, but it breaks
+        # Django-Recurly unless it's here - figure out why and fix it.
         'account',
     )
     xml_attribute_attributes = ('type',)
@@ -824,6 +826,9 @@ def objects_for_push_notification(notification):
     notification. The kind of push notification is given in the ``"type"``
     member of the returned dictionary.
 
+    NOTE: Push notification object attributes do not match up one-to-one with
+    their Recurly Resource counterparts. Some attributes will be trimmed in this
+    process.
     """
     notification_el = ElementTree.fromstring(notification)
     objects = {'type': notification_el.tag}
