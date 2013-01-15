@@ -587,6 +587,7 @@ class Transaction(Resource):
         'amount_in_cents',
         'tax_in_cents',
         'status',
+        'source',
         'reference',
         'test',
         'voidable',
