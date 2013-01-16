@@ -705,6 +705,8 @@ class Resource(object):
         d = {}
         a = self.attributes if not js else self.js_attributes
         for attr in a:
+            if not hasattr(self, attr):
+                continue
             try:
                 d[attr] = getattr(self, attr)
                 d[attr] = d[attr].to_dict(js=js)
@@ -713,6 +715,8 @@ class Resource(object):
 
         if not js:
             for attr in self.linked_attributes:
+                if not hasattr(self, attr):
+                    continue
                 try:
                     selfnode = self._elem
                     elem = selfnode.find(self.__getpath__(attr))

@@ -40,7 +40,7 @@ class Account(Resource):
 
     attributes = (
         'account_code',
-        # 'billing_info',
+        'billing_info',
         'state',
         'username',
         'email',
@@ -54,6 +54,7 @@ class Account(Resource):
     sensitive_attributes = ('number', 'verification_value',)
     linked_attributes = (
         'adjustments',
+        'billing_info',
         'invoices',
         'redemption',
         'subscriptions',
