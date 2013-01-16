@@ -701,26 +701,28 @@ class Resource(object):
 
     def to_dict(self, js=False):
         """Serialize this `Resource` instance to an python dictionary."""
-
         d = {}
-        a = self.attributes if not js else self.js_attributes
+        a = list(set(self.attributes + self.linked_attributes)) if not js \
+            else self.js_attributes
+
         for attr in a:
             if not hasattr(self, attr):
                 continue
-            try:
-                d[attr] = getattr(self, attr)
-                d[attr] = d[attr].to_dict(js=js)
-            except AttributeError:
-                pass
 
-        if not js:
-            for attr in self.linked_attributes:
-                if not hasattr(self, attr):
-                    continue
+            if not js and attr in self.linked_attributes:
                 try:
                     selfnode = self._elem
                     elem = selfnode.find(self.__getpath__(attr))
                     d[attr] = elem.attrib['href']
                 except AttributeError:
                     pass
+                else:
+                    continue
+
+            try:
+                d[attr] = getattr(self, attr)
+                d[attr] = d[attr].to_dict(js=js)
+            except AttributeError:
+                pass
+
         return d
